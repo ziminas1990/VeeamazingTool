@@ -18,16 +18,16 @@ class FileBlocksStream : public IBlocksStream
   };
 
 public:
-  FileBlocksStream(size_t nBlockSize, size_t nMemoryLimit, size_t nThreadsCount);
+  FileBlocksStream(size_t nBlockSize, size_t nPageSize, size_t nWorkersCount);
 
-  void proceed(IBlockDevice &pFile);
+  void proceed(IBlockDevicePtr pFile);
 
   // overrides from IBlocksStream
   Block yield() override;
 
 private:
   // returns total number of loaded blocks
-  size_t loadBackgroundPage(IBlockDevice &pFile, size_t nFirstBlockIndex);
+  size_t loadBackgroundPage(IBlockDevicePtr pFile, size_t nFirstBlockIndex);
 
 private:
   size_t m_nBlockSize;

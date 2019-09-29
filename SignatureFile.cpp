@@ -16,8 +16,8 @@ void SignatureFile::addSignature(size_t nBlockId, uint32_t nBlockSignature)
   m_nSignatures[nBlockId] = nBlockSignature;
 }
 
-void SignatureFile::dumpToFile(IBlockDevice& file)
+void SignatureFile::dumpToFile(IBlockDevicePtr pFile)
 {
-  file.write(0, m_nSignatures.size() * sizeof(uint32_t),
-             reinterpret_cast<uint8_t*>(m_nSignatures.data()));
+  pFile->write(0, m_nSignatures.size() * sizeof(uint32_t),
+               reinterpret_cast<uint8_t*>(m_nSignatures.data()));
 }

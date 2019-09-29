@@ -25,3 +25,5 @@ public:
 private:
   std::fstream m_stream;
 };
+
+using FileDevicePtr = std::shared_ptr<FileDevice>;

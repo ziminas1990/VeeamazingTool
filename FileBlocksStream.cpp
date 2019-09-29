@@ -3,17 +3,15 @@
 #include <assert.h>
 #include <memory.h>
 
-inline size_t getSuitablePageSize(size_t nBlockSize, size_t nMemoryLimit)
+inline size_t getSuitablePageSize(size_t nPageSize, size_t nBlockSize)
 {
-  size_t nPageSize = nMemoryLimit / 2;
-  nPageSize -= nPageSize % nBlockSize;
-  return nPageSize;
+  return nPageSize - nPageSize % nBlockSize;
 }
 
 FileBlocksStream::FileBlocksStream(
-    size_t nBlockSize, size_t nMemoryLimit, size_t nWorkersCount)
+    size_t nBlockSize, size_t nPageSize, size_t nWorkersCount)
   : m_nBlockSize(nBlockSize),
-    m_nPageSize(getSuitablePageSize(nBlockSize, nMemoryLimit)),
+    m_nPageSize(getSuitablePageSize(nPageSize, nBlockSize)),
     m_pActivePage(new uint8_t[m_nPageSize]),
     m_pBackgroundPage(new uint8_t[m_nPageSize]),
     m_lEndOfFile(false),
@@ -22,7 +20,7 @@ FileBlocksStream::FileBlocksStream(
 {}
 
 
-void FileBlocksStream::proceed(IBlockDevice& pFile)
+void FileBlocksStream::proceed(IBlockDevicePtr pFile)
 {
   size_t nTotalLoadedBlocks = 0;
   while (!m_lEndOfFile) {
@@ -61,17 +59,16 @@ Block FileBlocksStream::yield()
 }
 
 size_t FileBlocksStream::loadBackgroundPage(
-    IBlockDevice& pFile, size_t nFirstBlockIndex)
+    IBlockDevicePtr pFile, size_t nFirstBlockIndex)
 {
-  size_t nOffset    = nFirstBlockIndex * m_nBlockSize;
+  long nOffset = nFirstBlockIndex * m_nBlockSize;
   std::cout << "FileBlocksStream::loadBackgroundPage: Loading blocks from " <<
                nFirstBlockIndex << " (offset: " << nOffset << " bytes)" << std::endl;
-  size_t nBytesRead = pFile.read(nOffset, m_nPageSize, m_pBackgroundPage.get());
+  size_t nBytesRead = pFile->read(nOffset, m_nPageSize, m_pBackgroundPage.get());
   if (!nBytesRead) {
     std::cout << "Got 0 bytes" << std::endl;
     return 0;
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
   size_t nTotalBlocksOnPage = nBytesRead / m_nBlockSize;
   size_t nLastBlockLength   = nBytesRead % m_nBlockSize;
   if (nLastBlockLength) {

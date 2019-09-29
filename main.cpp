@@ -8,56 +8,64 @@
 #include "FileDevice.h"
 #include "Worker.h"
 #include "SignatureFile.h"
+#include "Configuration.h"
 
-inline size_t getTotalBlocksInFile(IBlockDevice /*const*/ & device, size_t nBlockSize)
+inline size_t getTotalBlocksInFile(IBlockDevicePtr pDevice, size_t nBlockSize)
 {
-  size_t nTotalLength = device.getSize();
+  size_t nTotalLength = pDevice->getSize();
   return nTotalLength / nBlockSize + (nTotalLength % nBlockSize ? 1 : 0);
 }
 
 int main(int argc, char* argv[])
 {
-  size_t nBlockSize = 4;
+  Configuration cfg;
+  if (!cfg.read(argc, argv)) {
+    cfg.printHelp();
+    return 1;
+  }
 
-  FileDevice source;
-  source.open(argv[1], FileDevice::eReadOnly);
+  // Initializing components:
+  FileDevicePtr pInput  = std::make_shared<FileDevice>();
+  FileDevicePtr pOutput = std::make_shared<FileDevice>();
+  try {
+    pInput->open(cfg.sInputFile, FileDevice::eReadOnly);
+    pOutput->open(cfg.sOutputFile, FileDevice::eWriteOnly);
+  } catch(...) {
+    std::cerr << "Failed to open input or output file!" << std::endl;
+    return 1;
+  }
 
-  FileDevice dest;
-  dest.open(argv[2], FileDevice::eWriteOnly);
-
-  size_t nTotalBlocks = getTotalBlocksInFile(source, nBlockSize);
-
-  SignatureFile signatures(nTotalBlocks);
+  size_t nBlockSize = cfg.nBlockSizeKb * 1024;
+  size_t nPageSize  = cfg.nPageSizeKb  * 1024;
 
   FileBlocksStreamPtr pSourceStream =
-      std::make_shared<FileBlocksStream>(nBlockSize, 256, 4);
+      std::make_shared<FileBlocksStream>(nBlockSize, nPageSize, cfg.nCoresCount);
 
-  std::thread workerThread1([&signatures, &pSourceStream]() {
-    Worker worker;
-    worker.run(pSourceStream, signatures);
-  });
-  std::thread workerThread2([&signatures, &pSourceStream]() {
-    Worker worker;
-    worker.run(pSourceStream, signatures);
-  });
-  std::thread workerThread3([&signatures, &pSourceStream]() {
-    Worker worker;
-    worker.run(pSourceStream, signatures);
-  });
-  std::thread workerThread4([&signatures, &pSourceStream]() {
-    Worker worker;
-    worker.run(pSourceStream, signatures);
-  });
+  SignatureFile signatures(getTotalBlocksInFile(pInput, nBlockSize));
 
-  pSourceStream->proceed(source);
+  // Starting workers:
+  std::vector<std::thread> workers;
+  workers.reserve(cfg.nCoresCount);
+  for (size_t i = 0; i < cfg.nCoresCount; ++i) {
+    workers.emplace_back([&signatures, &pSourceStream]() {
+      Worker worker;
+      worker.run(pSourceStream, signatures);
+    });
+  }
 
-  std::cout << "Proceeding finished! Waiting for workers..." << std::endl;
-  workerThread1.join();
-  workerThread2.join();
-  workerThread3.join();
-  workerThread4.join();
+  // Proceeding file
+  try {
+    pSourceStream->proceed(pInput);
+  } catch (std::exception& exception) {
+    std::cerr << "Unexpected error: " << exception.what() << "! Terminated!";
+    return 1;
+  }
 
-  signatures.dumpToFile(dest);
+  // Waiting forkers to finish
+  for (std::thread& worker : workers)
+    worker.join();
 
+  // Writing signature file
+  signatures.dumpToFile(pOutput);
   return 0;
 }

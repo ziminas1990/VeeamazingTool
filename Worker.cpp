@@ -1,23 +1,17 @@
 #include "Worker.h"
 
-// For Debugging
-#include <iostream>
-#include <string>
-#include <thread>
+#include <boost/crc.hpp>
 
 void Worker::run(IBlocksStreamPtr pBlockStream, SignatureFile& pSignatureFile)
 {
   Block block = pBlockStream->yield();
   while (block.isValid()) {
+    // process_bytes() is not a pure function, so we have to create new crcCalculator
+    // instance for each block
+    boost::crc_32_type crcCalculator;
+    crcCalculator.process_bytes(block.m_pData, block.m_nSize);
+    uint32_t nSignature = crcCalculator.checksum();
 
-    std::cout << "Worker::run: Got block #" << block.m_nIndex << " (" <<
-                 block.m_nSize << " bytes): " <<
-                 std::string((const char*)block.m_pData, block.m_nSize) << std::endl;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(block.m_nIndex % 4));
-
-    uint32_t nSignature = (block.m_pData[3] << 24) + (block.m_pData[2] << 16) +
-        (block.m_pData[1] << 8) + block.m_pData[0];
     pSignatureFile.addSignature(block.m_nIndex, nSignature);
     block = pBlockStream->yield();
   }
