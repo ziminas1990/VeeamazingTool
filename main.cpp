@@ -1,7 +1,4 @@
-#include "IBlocksStream.h"
 #include <thread>
-
-#include <boost/fiber/barrier.hpp>
 
 #include "SimpleBlocksStream.h"
 #include "FileBlocksStream.h"
@@ -28,8 +25,14 @@ int main(int argc, char* argv[])
   FileDevicePtr pInput  = std::make_shared<FileDevice>();
   FileDevicePtr pOutput = std::make_shared<FileDevice>();
   try {
-    pInput->open(cfg.sInputFile, FileDevice::eReadOnly);
-    pOutput->open(cfg.sOutputFile, FileDevice::eWriteOnly);
+    if (!pInput->open(cfg.sInputFile, FileDevice::eReadOnly)) {
+      std::cerr << "Failed to open input file " << cfg.sInputFile << std::endl;
+      return 1;
+    }
+    if (!pOutput->open(cfg.sOutputFile, FileDevice::eWriteOnly)) {
+      std::cerr << "Failed to open signature file " << cfg.sOutputFile << std::endl;
+      return 1;
+    }
   } catch(...) {
     std::cerr << "Failed to open input or output file!" << std::endl;
     return 1;

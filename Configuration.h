@@ -7,7 +7,7 @@ struct Configuration
   Configuration() = default;
 
   bool read(int argc, char* argv[]);
-
+  bool check();
   void printHelp();
 
   std::string sInputFile;

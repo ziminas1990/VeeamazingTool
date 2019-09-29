@@ -78,13 +78,45 @@ bool Configuration::read(int argc, char* argv[])
         return false;
     }
   }
-  return !sInputFile.empty() && !sOutputFile.empty() && nBlockSizeKb > 0;
+
+  return check();
+}
+
+bool Configuration::check()
+{
+  if (sInputFile.empty()) {
+    std::cerr << "Input file (-o or --output) is not specified!\n" << std::endl;
+    return false;
+  }
+
+  if (sOutputFile.empty()) {
+    std::cerr << "Output signature file (-o or --output) is not specified!\n" << std::endl;
+    return false;
+  }
+
+  if (!nBlockSizeKb) {
+    std::cerr << "BlockSize (-b, --block-size) should be greater than 0!\n" << std::endl;
+    return false;
+  }
+
+  if (nPageSizeKb < nBlockSizeKb) {
+    std::cerr << "PageSize (-p, --page-size) should be greater or equel to"
+                 " blockSize!\n" << std::endl;
+    return false;
+  }
+
+  if (!nCoresCount) {
+    std::cerr << "Cores count (-c, --cores-count) must be freater than 0!\n" << std::endl;
+    return false;
+  }
+
+  return true;
 }
 
 void Configuration::printHelp()
 {
   std::cout << "Usage:\n"
-            << "  VeeamazingTool -i <input file> -o <output file> -b 64\n\n"
+            << "  VeeamazingTool -i <input file> -o <output file> [-b blockSize] [-p pageSize] [-c cores]\n\n"
             << "Mandatory arguments:\n"
             << "  -i, --input=PATH      : path to input file\n"
             << "  -o, --output=PATH     : path to output (signature) file\n\n"

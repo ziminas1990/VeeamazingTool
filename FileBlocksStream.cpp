@@ -19,7 +19,6 @@ FileBlocksStream::FileBlocksStream(
     m_redBarrier(nWorkersCount + 1)
 {}
 
-
 void FileBlocksStream::proceed(IBlockDevicePtr pFile)
 {
   size_t nTotalLoadedBlocks = 0;
@@ -62,11 +61,8 @@ size_t FileBlocksStream::loadBackgroundPage(
     IBlockDevicePtr pFile, size_t nFirstBlockIndex)
 {
   long nOffset = nFirstBlockIndex * m_nBlockSize;
-  std::cout << "FileBlocksStream::loadBackgroundPage: Loading blocks from " <<
-               nFirstBlockIndex << " (offset: " << nOffset << " bytes)" << std::endl;
   size_t nBytesRead = pFile->read(nOffset, m_nPageSize, m_pBackgroundPage.get());
   if (!nBytesRead) {
-    std::cout << "Got 0 bytes" << std::endl;
     return 0;
   }
   size_t nTotalBlocksOnPage = nBytesRead / m_nBlockSize;
@@ -76,8 +72,5 @@ size_t FileBlocksStream::loadBackgroundPage(
     assert(nBytesRead + nLastBlockLength <= m_nPageSize);
     memset(m_pBackgroundPage.get() + nBytesRead, 0, nLastBlockLength);
   }
-  std::cout << "FileBlocksStream::loadBackgroundPage: Got " << nBytesRead <<
-               " bytes in " << nTotalBlocksOnPage << " blocks: " <<
-            std::string((const char*)m_pBackgroundPage.get(), nBytesRead) << std::endl;
   return nTotalBlocksOnPage;
 }
